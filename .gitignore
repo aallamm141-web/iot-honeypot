@@ -1,0 +1,40 @@
+# Secrets
+.env
+.env.*
+!.env.example
+cowrie/canary_assets/
+honeypot-local/
+
+# Virtualenvs & build artifacts
+cowrie/cowrie-env/
+conpot/conpot-venv/
+conpot/build/
+*.egg-info/
+venv/
+__pycache__/
+*.pyc
+
+# Attacker data & logs
+logs_and_reports/
+binaries/
+**/logs/
+cowrie/var/
+dionaea/var/
+conpot/logs/
+
+# Local tooling
+filebeat.yml
+*.log
+
+# Extra safety
+*.pem
+*.key
+*.pcap
+*.bak
+*.swp
+.DS_Store
+
+# Decoy assets
+cowrie/SCADA_*
+*.docx
+*.ps1

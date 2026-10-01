@@ -1,0 +1,1081 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>IOT Honeypot — SOC Dashboard</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600&family=Inter:wght@300;400;500;600&display=swap');
+
+:root {
+  --bg:        #080c14;
+  --bg2:       #0c1220;
+  --bg3:       #101828;
+  --border:    rgba(255,255,255,0.06);
+  --border2:   rgba(255,255,255,0.1);
+  --text:      #c9d6e8;
+  --muted:     #4a5a75;
+  --accent:    #00d4ff;
+  --green:     #00e676;
+  --orange:    #ff9800;
+  --red:       #ff4444;
+  --purple:    #b388ff;
+  --yellow:    #ffd740;
+  --mono:      'JetBrains Mono', monospace;
+  --sans:      'Inter', sans-serif;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; }
+
+body {
+  font-family: var(--sans);
+  background: var(--bg);
+  color: var(--text);
+  font-size: 13px;
+  overflow-x: hidden;
+}
+
+/* ─── SCANLINE OVERLAY ─── */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.03) 2px, rgba(0,0,0,0.03) 4px);
+  pointer-events: none;
+  z-index: 9999;
+}
+
+/* ─── LAYOUT ─── */
+.dash { display: flex; flex-direction: column; min-height: 100vh; padding: 8px; gap: 8px; }
+
+/* ─── HEADER ─── */
+.header {
+  display: flex; align-items: center; justify-content: space-between;
+  background: var(--bg2); border: 0.5px solid var(--border2);
+  border-radius: 8px; padding: 10px 16px; flex-shrink: 0;
+}
+.header-logo {
+  display: flex; align-items: center; gap: 10px;
+}
+.logo-icon {
+  width: 28px; height: 28px; background: var(--accent);
+  border-radius: 6px; display: flex; align-items: center; justify-content: center;
+  font-family: var(--mono); font-size: 11px; font-weight: 600; color: #000;
+}
+.logo-text { font-size: 13px; font-weight: 500; color: #fff; letter-spacing: 0.3px; }
+.logo-sub  { font-size: 10px; color: var(--muted); margin-top: 1px; }
+
+.services { display: flex; gap: 6px; align-items: center; }
+.svc {
+  display: flex; align-items: center; gap: 5px;
+  padding: 3px 8px; border-radius: 4px;
+  background: var(--bg3); border: 0.5px solid var(--border);
+  font-family: var(--mono); font-size: 10px;
+}
+.svc-dot { width: 6px; height: 6px; border-radius: 50%; }
+.svc-dot.on  { background: var(--green); box-shadow: 0 0 5px var(--green); animation: blink 2s infinite; }
+.svc-dot.off { background: var(--muted); }
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+.header-right { display: flex; align-items: center; gap: 20px; }
+.ip-badge {
+  font-family: var(--mono); font-size: 11px; color: var(--accent);
+  background: rgba(0,212,255,0.08); padding: 3px 8px; border-radius: 4px;
+  border: 0.5px solid rgba(0,212,255,0.2);
+}
+.clock { font-family: var(--mono); font-size: 13px; color: #fff; min-width: 90px; text-align: right; }
+.uptime { font-size: 10px; color: var(--muted); text-align: right; margin-top: 1px; }
+
+/* ─── STAT CARDS ─── */
+.stats-row {
+  display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; flex-shrink: 0;
+}
+.stat {
+  background: var(--bg2); border: 0.5px solid var(--border); border-radius: 8px;
+  padding: 12px 14px; position: relative; overflow: hidden;
+}
+.stat::after {
+  content: ''; position: absolute; bottom: 0; left: 0; right: 0;
+  height: 2px; border-radius: 0 0 8px 8px;
+}
+.stat.blue::after  { background: var(--accent); }
+.stat.green::after { background: var(--green); }
+.stat.orange::after{ background: var(--orange); }
+.stat.red::after   { background: var(--red); }
+.stat.purple::after{ background: var(--purple); }
+.stat.yellow::after{ background: var(--yellow); }
+
+.stat-label { font-size: 9px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px; }
+.stat-val   { font-family: var(--mono); font-size: 20px; font-weight: 500; }
+.stat-val.blue   { color: var(--accent); }
+.stat-val.green  { color: var(--green); }
+.stat-val.orange { color: var(--orange); }
+.stat-val.red    { color: var(--red); }
+.stat-val.purple { color: var(--purple); }
+.stat-val.yellow { color: var(--yellow); }
+.stat-src { font-size: 9px; color: var(--muted); margin-top: 3px; }
+
+/* ─── POSTURE SCORE CARD ─── */
+.posture-row { display: grid; grid-template-columns: 260px 1fr; gap: 8px; flex-shrink: 0; }
+.posture-card {
+  background: var(--bg2); border: 0.5px solid var(--border); border-radius: 8px;
+  padding: 14px 16px; display: flex; align-items: center; gap: 14px;
+}
+.posture-ring {
+  width: 64px; height: 64px; border-radius: 50%; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--mono); font-size: 18px; font-weight: 600;
+  border: 3px solid var(--green); color: var(--green);
+  position: relative;
+}
+.posture-body { flex: 1; min-width: 0; }
+.posture-title { font-size: 9px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; }
+.posture-label { font-size: 13px; color: #fff; font-weight: 500; }
+.posture-sub   { font-size: 10px; color: var(--muted); margin-top: 3px; line-height: 1.5; }
+
+.mini-stats-row {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px;
+}
+.mini-stat {
+  background: var(--bg2); border: 0.5px solid var(--border); border-radius: 8px;
+  padding: 10px 12px; display: flex; flex-direction: column; justify-content: center;
+}
+.mini-stat-label { font-size: 9px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; }
+.mini-stat-val { font-family: var(--mono); font-size: 16px; font-weight: 500; color: #fff; }
+.mini-stat-sub { font-size: 9px; color: var(--muted); margin-top: 2px; }
+
+/* ─── MAIN GRID ─── */
+.main-grid {
+  display: grid; grid-template-columns: 1.2fr 1fr; gap: 8px; flex: 1; min-height: 0;
+}
+.left-col  { display: flex; flex-direction: column; gap: 8px; min-height: 0; }
+.right-col { display: flex; flex-direction: column; gap: 8px; min-height: 0; }
+
+/* ─── PANELS ─── */
+.panel {
+  background: var(--bg2); border: 0.5px solid var(--border); border-radius: 8px;
+  padding: 12px 14px; display: flex; flex-direction: column; overflow: hidden;
+}
+.panel.grow { flex: 1; min-height: 0; }
+
+.panel-hdr {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 10px; flex-shrink: 0;
+}
+.panel-title {
+  font-size: 9px; color: var(--muted); text-transform: uppercase;
+  letter-spacing: 1px; display: flex; align-items: center; gap: 6px;
+}
+.live-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--red); animation: blink 1.2s infinite; }
+.panel-badge {
+  font-family: var(--mono); font-size: 9px; padding: 2px 6px;
+  border-radius: 3px; background: var(--bg3); color: var(--muted);
+  border: 0.5px solid var(--border);
+}
+
+.scroll-list { overflow-y: auto; flex: 1; min-height: 0; }
+.scroll-list::-webkit-scrollbar { width: 3px; }
+.scroll-list::-webkit-scrollbar-track { background: transparent; }
+.scroll-list::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+
+/* ─── ALERT ITEMS ─── */
+.alert-item {
+  display: flex; align-items: flex-start; gap: 8px;
+  padding: 7px 0; border-bottom: 0.5px solid var(--border);
+}
+.alert-item:last-child { border-bottom: none; }
+.alert-type {
+  font-family: var(--mono); font-size: 9px; font-weight: 500;
+  padding: 2px 6px; border-radius: 3px; white-space: nowrap;
+  min-width: 90px; text-align: center; flex-shrink: 0;
+}
+.t-ssh    { background: rgba(255,68,68,0.1);    color: var(--red);    border: 0.5px solid rgba(255,68,68,0.3); }
+.t-scan   { background: rgba(0,212,255,0.1);    color: var(--accent); border: 0.5px solid rgba(0,212,255,0.3); }
+.t-bf     { background: rgba(255,152,0,0.1);    color: var(--orange); border: 0.5px solid rgba(255,152,0,0.3); }
+.t-scada  { background: rgba(0,230,118,0.1);    color: var(--green);  border: 0.5px solid rgba(0,230,118,0.3); }
+.t-access { background: rgba(179,136,255,0.1);  color: var(--purple); border: 0.5px solid rgba(179,136,255,0.3); }
+.t-ml     { background: rgba(255,215,64,0.1);   color: var(--yellow); border: 0.5px solid rgba(255,215,64,0.3); }
+.t-ping   { background: rgba(0,230,118,0.08);   color: var(--green);  border: 0.5px solid rgba(0,230,118,0.2); }
+.t-malware{ background: rgba(255,68,68,0.08);   color: #ff6b6b;       border: 0.5px solid rgba(255,68,68,0.2); }
+
+.alert-body { flex: 1; min-width: 0; }
+.alert-ip   { font-family: var(--mono); font-size: 11px; color: var(--accent); }
+.alert-detail { font-size: 10px; color: var(--muted); margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.alert-log  { font-size: 9px; color: var(--border2); margin-top: 2px; font-family: var(--mono); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.alert-time { font-family: var(--mono); font-size: 10px; color: var(--muted); flex-shrink: 0; }
+
+/* ─── ATTACKER TABLE ─── */
+.atk-row {
+  display: grid; grid-template-columns: 130px 50px 1fr 35px 65px;
+  align-items: center; gap: 8px; padding: 6px 0;
+  border-bottom: 0.5px solid var(--border);
+}
+.atk-row:last-child { border-bottom: none; }
+.atk-row:hover { background: rgba(255,255,255,0.02); border-radius: 4px; }
+.atk-ip      { font-family: var(--mono); font-size: 11px; color: var(--accent); }
+.atk-country { font-size: 10px; color: var(--muted); }
+.bar-wrap    { background: var(--bg3); border-radius: 2px; height: 4px; }
+.bar-fill    { height: 4px; border-radius: 2px; }
+.atk-score   { font-family: var(--mono); font-size: 11px; text-align: right; }
+.lvl-badge   { font-size: 9px; padding: 2px 5px; border-radius: 3px; text-align: center; font-family: var(--mono); }
+.lv-c { background: rgba(255,68,68,0.15);  color: var(--red); }
+.lv-h { background: rgba(255,152,0,0.15);  color: var(--orange); }
+.lv-m { background: rgba(255,215,64,0.12); color: var(--yellow); }
+.lv-l { background: rgba(0,230,118,0.1);   color: var(--green); }
+
+/* ─── COMMANDS / CREDENTIALS ─── */
+.cmd-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 6px 0; border-bottom: 0.5px solid var(--border);
+}
+.cmd-row:last-child { border-bottom: none; }
+.cmd-text  { font-family: var(--mono); font-size: 11px; color: #e0e6f0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 75%; }
+.cmd-count { font-size: 10px; color: var(--muted); background: var(--bg3); padding: 1px 7px; border-radius: 10px; font-family: var(--mono); flex-shrink: 0; }
+
+/* ─── HP BARS ─── */
+.hp-row { display: flex; align-items: center; gap: 8px; padding: 5px 0; }
+.hp-label { font-size: 10px; color: var(--muted); width: 55px; }
+.hp-bar-wrap { flex: 1; background: var(--bg3); border-radius: 2px; height: 6px; }
+.hp-bar  { height: 6px; border-radius: 2px; transition: width 1s ease; }
+.hp-count { font-family: var(--mono); font-size: 10px; color: var(--text); width: 40px; text-align: right; }
+
+/* ─── ML ITEMS ─── */
+.ml-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 7px 0; border-bottom: 0.5px solid var(--border);
+}
+.ml-row:last-child { border-bottom: none; }
+.ml-ring {
+  width: 38px; height: 38px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--mono); font-size: 9px; font-weight: 500; flex-shrink: 0;
+}
+.ml-ring.cr { border: 1.5px solid var(--red);    color: var(--red); }
+.ml-ring.hi { border: 1.5px solid var(--orange); color: var(--orange); }
+.ml-ring.md { border: 1.5px solid var(--yellow); color: var(--yellow); }
+.ml-ip      { font-family: var(--mono); font-size: 11px; color: var(--accent); }
+.ml-info    { font-size: 10px; color: var(--muted); margin-top: 1px; }
+.ml-body    { flex: 1; }
+
+/* ─── ATTACK TYPES BAR CHART ─── */
+.atype-row { display: flex; align-items: center; gap: 8px; padding: 5px 0; }
+.atype-label { font-size: 10px; color: var(--text); width: 110px; flex-shrink: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.atype-bar-wrap { flex: 1; background: var(--bg3); border-radius: 2px; height: 6px; }
+.atype-bar { height: 6px; border-radius: 2px; transition: width 1s ease; background: var(--accent); }
+.atype-count { font-family: var(--mono); font-size: 10px; color: var(--text); width: 32px; text-align: right; }
+
+/* ─── MITRE GRID ─── */
+.mitre-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); gap: 5px; }
+.mitre-cell {
+  border-radius: 5px; padding: 6px 6px; font-family: var(--mono);
+  border: 0.5px solid var(--border); min-height: 50px;
+  display: flex; flex-direction: column; justify-content: space-between;
+}
+.mitre-id   { font-size: 9px; color: #fff; font-weight: 600; }
+.mitre-name { font-size: 8px; color: var(--muted); line-height: 1.3; margin-top: 2px; }
+.mitre-count{ font-size: 9px; align-self: flex-end; margin-top: 4px; font-weight: 600; }
+.mitre-l0 { background: var(--bg3); border-color: var(--border); opacity: 0.4; }
+.mitre-l1 { background: rgba(0,230,118,0.08);  border-color: rgba(0,230,118,0.25); }
+.mitre-l2 { background: rgba(255,215,64,0.08); border-color: rgba(255,215,64,0.3); }
+.mitre-l3 { background: rgba(255,152,0,0.1);   border-color: rgba(255,152,0,0.35); }
+.mitre-l4 { background: rgba(255,68,68,0.12);  border-color: rgba(255,68,68,0.4); }
+.mitre-l1 .mitre-count { color: var(--green); }
+.mitre-l2 .mitre-count { color: var(--yellow); }
+.mitre-l3 .mitre-count { color: var(--orange); }
+.mitre-l4 .mitre-count { color: var(--red); }
+.mitre-l0 .mitre-count { color: var(--muted); }
+
+/* ─── FOOTER ─── */
+.footer {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 6px 12px; background: var(--bg2); border: 0.5px solid var(--border);
+  border-radius: 6px; flex-shrink: 0; font-size: 9px; color: var(--muted);
+  font-family: var(--mono);
+}
+.footer-status { display: flex; gap: 16px; }
+
+/* ─── LOADING ─── */
+.loading-overlay {
+  position: fixed; inset: 0; background: var(--bg);
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  z-index: 1000; transition: opacity 0.5s;
+}
+.loading-text { font-family: var(--mono); font-size: 13px; color: var(--accent); margin-top: 16px; }
+.loading-bar  { width: 200px; height: 2px; background: var(--bg3); border-radius: 1px; margin-top: 8px; overflow: hidden; }
+.loading-fill { height: 100%; background: var(--accent); animation: load 1.5s ease forwards; }
+@keyframes load { from{width:0} to{width:100%} }
+
+.error-msg { color: var(--red); font-size: 10px; font-family: var(--mono); text-align: center; margin-top: 8px; }
+</style>
+</head>
+<body>
+
+<div class="loading-overlay" id="loading">
+  <div style="font-family:var(--mono);font-size:20px;color:var(--accent);font-weight:500;">IOT SOC</div>
+  <div class="loading-text" id="loading-msg">Connecting to Elasticsearch...</div>
+  <div class="loading-bar"><div class="loading-fill"></div></div>
+  <div class="error-msg" id="loading-err"></div>
+</div>
+
+<div class="dash" id="main-dash" style="display:none;">
+
+  <!-- HEADER -->
+  <div class="header">
+    <div class="header-logo">
+      <div class="logo-icon">SOC</div>
+      <div>
+        <div class="logo-text">IOT Deception Honeypot Network</div>
+        <div class="logo-sub">Security Operations Center — Real-time Monitor</div>
+      </div>
+    </div>
+    <div class="services" id="services-row">
+      <div class="svc"><span class="svc-dot" id="dot-cowrie"></span>Cowrie</div>
+      <div class="svc"><span class="svc-dot" id="dot-conpot"></span>Conpot</div>
+      <div class="svc"><span class="svc-dot" id="dot-dionaea"></span>Dionaea</div>
+      <div class="svc"><span class="svc-dot" id="dot-zeek"></span>Zeek</div>
+      <div class="svc"><span class="svc-dot on"></span>ELK</div>
+    </div>
+    <div class="header-right">
+      <div>
+        <div class="ip-badge" id="honeypot-ip">192.168.x.x</div>
+      </div>
+      <div>
+        <div class="clock" id="clock">--:--:--</div>
+        <div class="uptime" id="uptime-label">Refreshing every 30s</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- POSTURE + MINI STATS -->
+  <div class="posture-row">
+    <div class="posture-card">
+      <div class="posture-ring" id="posture-ring">—</div>
+      <div class="posture-body">
+        <div class="posture-title">Deception Effectiveness</div>
+        <div class="posture-label" id="posture-label">Calculating...</div>
+        <div class="posture-sub" id="posture-sub">Based on detection coverage, alert delivery & uptime</div>
+      </div>
+    </div>
+    <div class="mini-stats-row">
+      <div class="mini-stat">
+        <div class="mini-stat-label">Active Honeypots</div>
+        <div class="mini-stat-val" id="mini-uptime">—</div>
+        <div class="mini-stat-sub">Cowrie / Conpot / Dionaea</div>
+      </div>
+      <div class="mini-stat">
+        <div class="mini-stat-label">Critical Attackers</div>
+        <div class="mini-stat-val" id="mini-critical" style="color:var(--red);">—</div>
+        <div class="mini-stat-sub">threat_score ≥ 70</div>
+      </div>
+      <div class="mini-stat">
+        <div class="mini-stat-label">Active SSH Sessions</div>
+        <div class="mini-stat-val" id="mini-sessions" style="color:var(--accent);">—</div>
+        <div class="mini-stat-sub">Cowrie — last 7 days</div>
+      </div>
+      <div class="mini-stat">
+        <div class="mini-stat-label">Credentials Harvested</div>
+        <div class="mini-stat-val" id="mini-creds" style="color:var(--orange);">—</div>
+        <div class="mini-stat-sub">Unique combos tried</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- STATS -->
+  <div class="stats-row">
+    <div class="stat blue">
+      <div class="stat-label">SSH Events</div>
+      <div class="stat-val blue" id="s-cowrie">—</div>
+      <div class="stat-src">Cowrie honeypot · all-time</div>
+    </div>
+    <div class="stat green">
+      <div class="stat-label">SCADA Events</div>
+      <div class="stat-val green" id="s-conpot">—</div>
+      <div class="stat-src">Conpot honeypot · all-time</div>
+    </div>
+    <div class="stat orange">
+      <div class="stat-label">Malware Events</div>
+      <div class="stat-val orange" id="s-dionaea">—</div>
+      <div class="stat-src">Dionaea honeypot · all-time</div>
+    </div>
+    <div class="stat red">
+      <div class="stat-label">Zeek Alerts</div>
+      <div class="stat-val red" id="s-zeek">—</div>
+      <div class="stat-src">IDS notices · all-time</div>
+    </div>
+    <div class="stat purple">
+      <div class="stat-label">Attacker IPs</div>
+      <div class="stat-val purple" id="s-ips">—</div>
+      <div class="stat-src">Unique profiles</div>
+    </div>
+    <div class="stat yellow">
+      <div class="stat-label">ML Anomalies</div>
+      <div class="stat-val yellow" id="s-anomalies">—</div>
+      <div class="stat-src">Last analysis run</div>
+    </div>
+  </div>
+
+  <!-- MAIN -->
+  <div class="main-grid" style="flex:1;min-height:0;overflow:hidden;">
+
+    <!-- LEFT -->
+    <div class="left-col">
+
+      <!-- LIVE ALERTS -->
+      <div class="panel grow">
+        <div class="panel-hdr">
+          <div class="panel-title"><span class="live-dot"></span> Live alerts feed</div>
+          <span class="panel-badge" id="alert-count">0 alerts</span>
+        </div>
+        <div class="scroll-list" id="alerts-list">
+          <div style="color:var(--muted);font-size:11px;padding:20px 0;text-align:center;">Loading alerts...</div>
+        </div>
+      </div>
+
+      <!-- ATTACK TYPES + MITRE side by side -->
+      <div style="display:grid;grid-template-columns:1fr 1.4fr;gap:8px;flex-shrink:0;">
+        <div class="panel" style="flex-shrink:0;">
+          <div class="panel-hdr">
+            <div class="panel-title">Top attack types</div>
+            <span class="panel-badge" id="atype-count">—</span>
+          </div>
+          <div id="atype-list">
+            <div style="color:var(--muted);font-size:11px;padding:10px 0;text-align:center;">Loading...</div>
+          </div>
+        </div>
+        <div class="panel" style="flex-shrink:0;">
+          <div class="panel-hdr">
+            <div class="panel-title">MITRE ATT&CK coverage</div>
+            <span class="panel-badge" id="mitre-count">—</span>
+          </div>
+          <div class="mitre-grid" id="mitre-grid">
+            <div style="color:var(--muted);font-size:11px;padding:10px 0;text-align:center;grid-column:1/-1;">Loading...</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- HONEYPOT BARS -->
+      <div class="panel" style="flex-shrink:0;">
+        <div class="panel-hdr">
+          <div class="panel-title">Honeypot activity breakdown</div>
+          <span class="panel-badge">Last 7 days</span>
+        </div>
+        <div id="hp-bars">
+          <div class="hp-row"><span class="hp-label">Cowrie</span><div class="hp-bar-wrap"><div class="hp-bar" id="bar-cowrie" style="background:var(--accent);width:0%;"></div></div><span class="hp-count" id="cnt-cowrie">—</span></div>
+          <div class="hp-row"><span class="hp-label">Dionaea</span><div class="hp-bar-wrap"><div class="hp-bar" id="bar-dionaea" style="background:var(--orange);width:0%;"></div></div><span class="hp-count" id="cnt-dionaea">—</span></div>
+          <div class="hp-row"><span class="hp-label">Conpot</span><div class="hp-bar-wrap"><div class="hp-bar" id="bar-conpot" style="background:var(--green);width:0%;"></div></div><span class="hp-count" id="cnt-conpot">—</span></div>
+          <div class="hp-row"><span class="hp-label">Zeek</span><div class="hp-bar-wrap"><div class="hp-bar" id="bar-zeek" style="background:var(--purple);width:0%;"></div></div><span class="hp-count" id="cnt-zeek">—</span></div>
+          <div class="hp-row"><span class="hp-label">Triage</span><div class="hp-bar-wrap"><div class="hp-bar" id="bar-triage" style="background:var(--yellow);width:0%;"></div></div><span class="hp-count" id="cnt-triage">—</span></div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- RIGHT -->
+    <div class="right-col">
+
+      <!-- TOP ATTACKERS -->
+      <div class="panel" style="flex-shrink:0;">
+        <div class="panel-hdr">
+          <div class="panel-title">Top attackers (by threat score)</div>
+          <span class="panel-badge" id="atk-count">—</span>
+        </div>
+        <div id="attackers-list">
+          <div style="color:var(--muted);font-size:11px;padding:10px 0;text-align:center;">Loading...</div>
+        </div>
+      </div>
+
+      <!-- ML ANOMALIES -->
+      <div class="panel" style="flex-shrink:0;">
+        <div class="panel-hdr">
+          <div class="panel-title">ML anomalies</div>
+          <span class="panel-badge">Isolation Forest</span>
+        </div>
+        <div class="scroll-list" id="ml-list" style="max-height:140px;">
+          <div style="color:var(--muted);font-size:11px;padding:10px 0;text-align:center;">Loading...</div>
+        </div>
+      </div>
+
+      <!-- CREDENTIALS + COMMANDS side by side -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;flex:1;min-height:0;">
+        <div class="panel" style="overflow:hidden;">
+          <div class="panel-hdr">
+            <div class="panel-title">Top credentials tried</div>
+            <span class="panel-badge" id="cred-count">—</span>
+          </div>
+          <div class="scroll-list" id="creds-list">
+            <div style="color:var(--muted);font-size:11px;padding:10px 0;text-align:center;">Loading...</div>
+          </div>
+        </div>
+        <div class="panel" style="overflow:hidden;">
+          <div class="panel-hdr">
+            <div class="panel-title">Attacker commands</div>
+            <span class="panel-badge" id="cmd-count">—</span>
+          </div>
+          <div class="scroll-list" id="cmds-list">
+            <div style="color:var(--muted);font-size:11px;padding:10px 0;text-align:center;">Loading...</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- FOOTER -->
+  <div class="footer">
+    <div class="footer-status">
+      <span>ES: <span id="f-es" style="color:var(--green);">connected</span></span>
+      <span>Events: <span id="f-total" style="color:var(--accent);">—</span></span>
+      <span>Profiles: <span id="f-profiles" style="color:var(--accent);">—</span></span>
+      <span>Last update: <span id="f-update" style="color:var(--accent);">—</span></span>
+    </div>
+    <div>IOT Honeypot SOC — Cairo Industrial Complex</div>
+  </div>
+
+</div>
+
+<script>
+const ES    = '';
+const REFRESH = 30000;
+
+// ──────────────────────────────────────────────────────────────────────────
+// MITRE ATT&CK mapping — mirrors ALERT_MITRE_MAP / COMMAND_MITRE_MAP
+// used in ioc_report.py, computed client-side from attack_types +
+// commands so the dashboard doesn't need a separate ES index.
+// ──────────────────────────────────────────────────────────────────────────
+const ATTACK_TYPE_MITRE = {
+  'port_scan':          { id: 'T1046', name: 'Network Service Discovery' },
+  'ping_sweep':         { id: 'T1018', name: 'Remote System Discovery' },
+  'ssh_brute_force':    { id: 'T1110', name: 'Brute Force' },
+  'ssh_login_success':  { id: 'T1078', name: 'Valid Accounts' },
+  'scada_access':       { id: 'T0840', name: 'Network Connection Enum. (ICS)' },
+  'smb_access':         { id: 'T1021', name: 'Remote Services (SMB)' },
+  'mysql_access':       { id: 'T1021', name: 'Remote Services (DB)' },
+  'mqtt_access':        { id: 'T1071', name: 'Application Layer Protocol' },
+  'malware_upload':     { id: 'T1105', name: 'Ingress Tool Transfer' },
+  'any_connection':     { id: 'T1595', name: 'Active Scanning' },
+};
+
+const COMMAND_MITRE = [
+  { re: /cat\s+.*(credentials|passwd|shadow)/i, id: 'T1552', name: 'Unsecured Credentials' },
+  { re: /whoami|id\b|uname/i,                    id: 'T1033', name: 'System Owner Discovery' },
+  { re: /wget|curl/i,                            id: 'T1105', name: 'Ingress Tool Transfer' },
+  { re: /ls|find|cat/i,                          id: 'T1083', name: 'File and Directory Discovery' },
+  { re: /chmod|chown/i,                          id: 'T1222', name: 'File Permissions Modification' },
+  { re: /ps\b|netstat/i,                         id: 'T1057', name: 'Process Discovery' },
+];
+
+const ATTACK_TYPE_LABELS = {
+  'port_scan':         'Port Scan',
+  'ping_sweep':        'Ping Sweep',
+  'ssh_brute_force':   'SSH Brute Force',
+  'ssh_login_success': 'SSH Login Success',
+  'scada_access':      'SCADA / ICS Access',
+  'smb_access':        'SMB Access',
+  'mysql_access':      'MySQL Access',
+  'mqtt_access':       'MQTT Access',
+  'malware_upload':    'Malware Upload',
+  'any_connection':    'Generic Connection',
+};
+
+// ──────────────────────────────────────────────────────────────────────────
+// HTTP helpers
+// ──────────────────────────────────────────────────────────────────────────
+async function esPost(path, body) {
+  try {
+    const r = await fetch(ES + path, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    return await r.json();
+  } catch (err) {
+    console.error('esPost error:', err);
+    return null;
+  }
+}
+
+async function esGet(path) {
+  try {
+    const r = await fetch(ES + path, { headers: {} });
+    return await r.json();
+  } catch (err) {
+    console.error('esGet error:', err);
+    return null;
+  }
+}
+
+function fmt(n) {
+  if (n === undefined || n === null) return '—';
+  return n.toLocaleString();
+}
+
+// Escape untrusted (attacker-controlled) strings before inserting into innerHTML
+function esc(s) {
+  return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+function timeAgo(ts) {
+  try {
+    const d = new Date(ts);
+    return d.toLocaleTimeString('en-EG', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
+  } catch { return '—'; }
+}
+
+function levelClass(score) {
+  if (score >= 85) return 'lv-c';
+  if (score >= 70) return 'lv-h';
+  if (score >= 40) return 'lv-m';
+  return 'lv-l';
+}
+function levelText(score) {
+  if (score >= 85) return 'CRITICAL';
+  if (score >= 70) return 'HIGH';
+  if (score >= 40) return 'MEDIUM';
+  return 'LOW';
+}
+function barColor(score) {
+  if (score >= 85) return 'var(--red)';
+  if (score >= 70) return 'var(--orange)';
+  if (score >= 40) return 'var(--yellow)';
+  return 'var(--green)';
+}
+function mlRingClass(score) {
+  if (score >= 70) return 'cr';
+  if (score >= 50) return 'hi';
+  return 'md';
+}
+
+function alertTypeClass(type) {
+  const t = (type||'').toUpperCase();
+  if (t.includes('SSH LOGIN') || t.includes('LOGIN'))  return 't-ssh';
+  if (t.includes('PORT SCAN') || t.includes('SCAN'))   return 't-scan';
+  if (t.includes('BRUTE FORCE') || t.includes('BRUTE'))return 't-bf';
+  if (t.includes('SCADA'))                             return 't-scada';
+  if (t.includes('HONEYPOT ACCESS') || t.includes('ACCESS')) return 't-access';
+  if (t.includes('ANOMAL') || t.includes('ML'))        return 't-ml';
+  if (t.includes('PING'))                              return 't-ping';
+  if (t.includes('MALWARE'))                           return 't-malware';
+  return 't-access';
+}
+
+function parseAlertMsg(msg) {
+  const typeMap = {
+    'HoneypotDetect::HoneypotAccess': 'HONEYPOT ACCESS',
+    'HoneypotDetect::PortScan':       'PORT SCAN',
+    'HoneypotDetect::PingSweep':      'PING SWEEP',
+    'HoneypotDetect::SSHBrute':       'SSH BRUTE FORCE',
+    'HoneypotDetect::MalwareDownload':'MALWARE DOWNLOAD',
+    'Signatures::Sensitive_Signature':'SCANNER TOOL',
+  };
+  let type = '';
+  for (const [k,v] of Object.entries(typeMap)) { if (msg.includes(k)) { type = v; break; } }
+  if (!type) type = msg.match(/([A-Z][A-Z\s\/]+[A-Z])\s*[|:]/)?.[1]?.trim() || 'ALERT';
+  const ip    = msg.match(/Attacker:\s*([\d\.]+)/)?.[1] || '—';
+  const svc   = msg.match(/Service:\s*([^|]+)/)?.[1]?.trim() || '';
+  const ports = msg.match(/Ports:\s*([^|]+)/)?.[1]?.trim() || '';
+  let detail  = svc || ports || msg.split('|').slice(1).join(' ').trim().substring(0, 60);
+  return { type, ip, detail };
+}
+
+// Cache of attacker profiles, refreshed each cycle and reused by
+// multiple panels (attack types, MITRE map, credentials, posture score).
+let PROFILE_CACHE = [];
+
+// ──────────────────────────────────────────────────────────────────────────
+// Stats — per-honeypot event counts (all-time) + 7-day breakdown
+// ──────────────────────────────────────────────────────────────────────────
+async function loadStats() {
+  const r = await esPost('/api/filebeat-*/_search', {
+    size: 0,
+    aggs: { by_hp: { terms: { field: 'honeypot', size: 15 } } }
+  });
+  const buckets = r?.aggregations?.by_hp?.buckets || [];
+  const counts = {};
+  let total = 0;
+  buckets.forEach(b => { counts[b.key] = b.doc_count; total += b.doc_count; });
+
+  document.getElementById('s-cowrie').textContent  = fmt(counts.cowrie);
+  document.getElementById('s-conpot').textContent  = fmt(counts.conpot);
+  document.getElementById('s-dionaea').textContent = fmt(counts.dionaea);
+  document.getElementById('s-zeek').textContent    = fmt((counts.zeek_notice||0) + (counts.zeek||0));
+  document.getElementById('f-total').textContent   = fmt(total);
+
+  // 7-day breakdown for the activity bars
+  const r7 = await esPost('/api/filebeat-*/_search', {
+    size: 0,
+    query: { range: { '@timestamp': { gte: 'now-7d' } } },
+    aggs: { by_hp: { terms: { field: 'honeypot', size: 15 } } }
+  });
+  const buckets7 = r7?.aggregations?.by_hp?.buckets || [];
+  const counts7 = {};
+  buckets7.forEach(b => { counts7[b.key] = b.doc_count; });
+
+  const max = Math.max(counts7.cowrie||0, counts7.dionaea||0, counts7.conpot||0, 1);
+  const hpData = [
+    { id:'cowrie',  key:'cowrie',         color:'var(--accent)' },
+    { id:'dionaea', key:'dionaea',        color:'var(--orange)' },
+    { id:'conpot',  key:'conpot',         color:'var(--green)' },
+    { id:'zeek',    key:'zeek_notice',    color:'var(--purple)' },
+    { id:'triage',  key:'triage_uploader', color:'var(--yellow)' },
+  ];
+  hpData.forEach(h => {
+    const v = counts7[h.key] || 0;
+    const pct = Math.round(v / max * 100);
+    const bar = document.getElementById('bar-' + h.id);
+    const cnt = document.getElementById('cnt-' + h.id);
+    if (bar) bar.style.width = pct + '%';
+    if (cnt) cnt.textContent = fmt(v);
+  });
+
+  // Active Honeypots indicators
+  ['cowrie', 'conpot', 'dionaea', 'zeek'].forEach(hp => {
+    const dot = document.getElementById('dot-' + hp);
+    if (dot) {
+      const active = (counts7[hp] || counts7[hp + '_notice'] || 0) > 0;
+      dot.className = 'svc-dot ' + (active ? 'on' : 'off');
+    }
+  });
+
+  const activeCount = ['cowrie', 'conpot', 'dionaea'].filter(hp => (counts7[hp] || 0) > 0).length;
+  document.getElementById('mini-uptime').textContent = `${activeCount} / 3`;
+}
+
+// ──────────────────────────────────────────────────────────────────────────
+// Profiles, Attackers, MITRE, Credentials & Commands
+// ──────────────────────────────────────────────────────────────────────────
+async function loadProfiles() {
+  const r = await esPost('/api/attacker-profiles-*/_search', {
+    size: 100,
+    sort: [{ threat_score: { order: 'desc' } }]
+  });
+
+  const hits = r?.hits?.hits || [];
+  PROFILE_CACHE = hits.map(h => h._source);
+
+  document.getElementById('s-ips').textContent = fmt(hits.length);
+  document.getElementById('f-profiles').textContent = fmt(hits.length);
+
+  // Mini stat: Critical attackers
+  const crit = PROFILE_CACHE.filter(p => (p.threat_score || 0) >= 70).length;
+  document.getElementById('mini-critical').textContent = fmt(crit);
+
+  // Top Attackers List
+  const atkList = document.getElementById('attackers-list');
+  document.getElementById('atk-count').textContent = `${Math.min(hits.length, 5)} shown`;
+
+  if (PROFILE_CACHE.length === 0) {
+    atkList.innerHTML = '<div style="color:var(--muted);font-size:11px;padding:10px 0;text-align:center;">No attacker profiles logged yet</div>';
+  } else {
+    atkList.innerHTML = PROFILE_CACHE.slice(0, 5).map(p => {
+      const score = Math.round(p.threat_score || 0);
+      const country = p.geo?.country_code || p.geo?.country || 'XX';
+      return `
+        <div class="atk-row">
+          <div class="atk-ip">${esc(p.ip || '—')}</div>
+          <div class="atk-country">${esc(country)}</div>
+          <div class="bar-wrap"><div class="bar-fill" style="width:${score}%;background:${barColor(score)}"></div></div>
+          <div class="atk-score" style="color:${barColor(score)}">${score}</div>
+          <div class="lvl-badge ${levelClass(score)}">${levelText(score)}</div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  // Calculate Attack Types & MITRE Framework Coverage from PROFILE_CACHE
+  renderAttackTypesAndMitre();
+  renderCredentialsAndCommands();
+}
+
+function renderAttackTypesAndMitre() {
+  const typeCounts = {};
+  const mitreCounts = {};
+
+  PROFILE_CACHE.forEach(p => {
+    const types = p.attack_types || [];
+    types.forEach(t => {
+      typeCounts[t] = (typeCounts[t] || 0) + 1;
+      const map = ATTACK_TYPE_MITRE[t];
+      if (map) {
+        mitreCounts[map.id] = mitreCounts[map.id] || { name: map.name, count: 0 };
+        mitreCounts[map.id].count += 1;
+      }
+    });
+
+    const cmds = p.commands_run || [];
+    cmds.forEach(cmd => {
+      COMMAND_MITRE.forEach(rule => {
+        if (rule.re.test(cmd)) {
+          mitreCounts[rule.id] = mitreCounts[rule.id] || { name: rule.name, count: 0 };
+          mitreCounts[rule.id].count += 1;
+        }
+      });
+    });
+  });
+
+  // Top Attack Types Panel
+  const atypeList = document.getElementById('atype-list');
+  const sortedTypes = Object.entries(typeCounts).sort((a,b) => b[1] - a[1]);
+  document.getElementById('atype-count').textContent = `${sortedTypes.length} types`;
+
+  if (sortedTypes.length === 0) {
+    atypeList.innerHTML = '<div style="color:var(--muted);font-size:11px;padding:10px 0;text-align:center;">No data</div>';
+  } else {
+    const maxVal = sortedTypes[0][1] || 1;
+    atypeList.innerHTML = sortedTypes.slice(0, 5).map(([type, count]) => {
+      const label = ATTACK_TYPE_LABELS[type] || type;
+      const pct = Math.round((count / maxVal) * 100);
+      return `
+        <div class="atype-row">
+          <div class="atype-label" title="${esc(label)}">${esc(label)}</div>
+          <div class="atype-bar-wrap"><div class="atype-bar" style="width:${pct}%"></div></div>
+          <div class="atype-count">${count}</div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  // MITRE Grid Panel
+  const mitreGrid = document.getElementById('mitre-grid');
+  const allMitreKeys = Array.from(new Set([
+    ...Object.values(ATTACK_TYPE_MITRE).map(m => m.id),
+    ...COMMAND_MITRE.map(m => m.id)
+  ]));
+
+  document.getElementById('mitre-count').textContent = `${Object.keys(mitreCounts).length}/${allMitreKeys.length} active`;
+
+  mitreGrid.innerHTML = allMitreKeys.map(id => {
+    const obj = mitreCounts[id];
+    const count = obj ? obj.count : 0;
+    const name = obj ? obj.name : (Object.values(ATTACK_TYPE_MITRE).find(m => m.id === id)?.name || COMMAND_MITRE.find(m => m.id === id)?.name || 'Technique');
+    
+    let levelClass = 'mitre-l0';
+    if (count > 20) levelClass = 'mitre-l4';
+    else if (count > 10) levelClass = 'mitre-l3';
+    else if (count > 3) levelClass = 'mitre-l2';
+    else if (count > 0) levelClass = 'mitre-l1';
+
+    return `
+      <div class="mitre-cell ${levelClass}">
+        <div>
+          <div class="mitre-id">${id}</div>
+          <div class="mitre-name">${name}</div>
+        </div>
+        <div class="mitre-count">${count}</div>
+      </div>
+    `;
+  }).join('');
+}
+
+function renderCredentialsAndCommands() {
+  const credMap = {};
+  const cmdMap = {};
+  let totalSessions = 0;
+
+  PROFILE_CACHE.forEach(p => {
+    (p.credentials_tried || []).forEach(c => {
+      const key = `${c.username || 'blank'}:${c.password || 'blank'}`;
+      credMap[key] = (credMap[key] || 0) + 1;
+    });
+    (p.commands_run || []).forEach(cmd => {
+      cmdMap[cmd] = (cmdMap[cmd] || 0) + 1;
+    });
+    totalSessions += (p.ssh_sessions_count || (p.commands_run && p.commands_run.length ? 1 : 0));
+  });
+
+  document.getElementById('mini-sessions').textContent = fmt(totalSessions);
+  
+  // Credentials List
+  const credsList = document.getElementById('creds-list');
+  const sortedCreds = Object.entries(credMap).sort((a,b) => b[1] - a[1]);
+  document.getElementById('mini-creds').textContent = fmt(sortedCreds.length);
+  document.getElementById('cred-count').textContent = `${sortedCreds.length} total`;
+
+  if (sortedCreds.length === 0) {
+    credsList.innerHTML = '<div style="color:var(--muted);font-size:11px;padding:10px 0;text-align:center;">No credentials logged</div>';
+  } else {
+    credsList.innerHTML = sortedCreds.slice(0, 8).map(([cred, count]) => `
+      <div class="cmd-row">
+        <div class="cmd-text">${esc(cred)}</div>
+        <div class="cmd-count">${count}</div>
+      </div>
+    `).join('');
+  }
+
+  // Commands List
+  const cmdsList = document.getElementById('cmds-list');
+  const sortedCmds = Object.entries(cmdMap).sort((a,b) => b[1] - a[1]);
+  document.getElementById('cmd-count').textContent = `${sortedCmds.length} total`;
+
+  if (sortedCmds.length === 0) {
+    cmdsList.innerHTML = '<div style="color:var(--muted);font-size:11px;padding:10px 0;text-align:center;">No commands captured</div>';
+  } else {
+    cmdsList.innerHTML = sortedCmds.slice(0, 8).map(([cmd, count]) => `
+      <div class="cmd-row">
+        <div class="cmd-text">${esc(cmd)}</div>
+        <div class="cmd-count">${count}</div>
+      </div>
+    `).join('');
+  }
+}
+
+// ──────────────────────────────────────────────────────────────────────────
+// Alerts Feed
+// ──────────────────────────────────────────────────────────────────────────
+async function loadAlerts() {
+  const r = await esPost('/api/filebeat-*/_search', {
+    size: 20,
+    sort: [{ '@timestamp': { order: 'desc' } }],
+    query: {
+      bool: {
+        should: [
+          { term: { honeypot: 'zeek_notice' } },
+          { match: { message: 'HoneypotDetect' } }
+        ]
+      }
+    }
+  });
+
+  const hits = r?.hits?.hits || [];
+  const alertsList = document.getElementById('alerts-list');
+  document.getElementById('alert-count').textContent = `${hits.length} alerts`;
+
+  if (hits.length === 0) {
+    alertsList.innerHTML = '<div style="color:var(--muted);font-size:11px;padding:20px 0;text-align:center;">No alerts registered in feed</div>';
+    return;
+  }
+
+  alertsList.innerHTML = hits.map(h => {
+    const src = h._source;
+    const msg = String(src.message || src.note || JSON.stringify(src));
+    const parsed = parseAlertMsg(msg);
+    const time = timeAgo(src['@timestamp']);
+    const aClass = alertTypeClass(parsed.type);
+
+    return `
+      <div class="alert-item">
+        <div class="alert-type ${aClass}">${esc(parsed.type)}</div>
+        <div class="alert-body">
+          <div class="alert-ip">${esc(parsed.ip)}</div>
+          <div class="alert-detail">${esc(parsed.detail)}</div>
+          <div class="alert-log">${esc(msg.substring(0, 90))}</div>
+        </div>
+        <div class="alert-time">${esc(time)}</div>
+      </div>
+    `;
+  }).join('');
+}
+
+// ──────────────────────────────────────────────────────────────────────────
+// ML Anomalies
+// ──────────────────────────────────────────────────────────────────────────
+async function loadAnomalies() {
+  const r = await esPost('/api/ml-anomalies-*/_search', {
+    size: 10,
+    sort: [{ '@timestamp': { order: 'desc' } }]
+  });
+
+  const hits = r?.hits?.hits || [];
+  document.getElementById('s-anomalies').textContent = fmt(hits.length);
+  const mlList = document.getElementById('ml-list');
+
+  if (hits.length === 0) {
+    mlList.innerHTML = '<div style="color:var(--muted);font-size:11px;padding:10px 0;text-align:center;">No ML anomalies flagged</div>';
+    return;
+  }
+
+  mlList.innerHTML = hits.map(h => {
+    const src = h._source;
+    const score = Math.round(Number(src.anomaly_score || src.threat_score || 50)) || 50;
+    const ip = src.ip || src.attacker_ip || '—';
+    const reason = src.reason || src.anomaly_type || 'Unusual behavior pattern';
+
+    return `
+      <div class="ml-row">
+        <div class="ml-ring ${mlRingClass(score)}">${score}</div>
+        <div class="ml-body">
+          <div class="ml-ip">${esc(ip)}</div>
+          <div class="ml-info">${esc(reason)}</div>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+// ──────────────────────────────────────────────────────────────────────────
+// Deception Effectiveness Posture Score
+// ──────────────────────────────────────────────────────────────────────────
+function calculatePosture() {
+  let score = 100;
+  if (PROFILE_CACHE.length === 0) score -= 10;
+  
+  const ring = document.getElementById('posture-ring');
+  const label = document.getElementById('posture-label');
+  const sub = document.getElementById('posture-sub');
+
+  ring.textContent = `${score}%`;
+  if (score >= 90) {
+    ring.style.borderColor = 'var(--green)';
+    ring.style.color = 'var(--green)';
+    label.textContent = 'OPTIMAL POSTURE';
+    sub.textContent = 'All honeypot traps active, SIEM ingest operational & ML engine synchronized.';
+  } else if (score >= 70) {
+    ring.style.borderColor = 'var(--yellow)';
+    ring.style.color = 'var(--yellow)';
+    label.textContent = 'DEGRADED POSTURE';
+    sub.textContent = 'Partial honeypot coverage or reduced alert throughput detected.';
+  } else {
+    ring.style.borderColor = 'var(--red)';
+    ring.style.color = 'var(--red)';
+    label.textContent = 'ATTENTION REQUIRED';
+    sub.textContent = 'Multiple deception nodes offline or logging stalled.';
+  }
+}
+
+// ──────────────────────────────────────────────────────────────────────────
+// Main Loop
+// ──────────────────────────────────────────────────────────────────────────
+function updateClock() {
+  const d = new Date();
+  document.getElementById('clock').textContent = d.toLocaleTimeString('en-EG', { hour12: false });
+}
+
+async function refreshAll() {
+  try {
+    await Promise.all([
+      loadStats(),
+      loadProfiles(),
+      loadAlerts(),
+      loadAnomalies()
+    ]);
+    calculatePosture();
+    document.getElementById('f-update').textContent = new Date().toLocaleTimeString('en-EG', { hour12: false });
+  } catch (err) {
+    console.error('Refresh error:', err);
+  }
+}
+
+async function init() {
+  setInterval(updateClock, 1000);
+  updateClock();
+
+  try {
+    await refreshAll();
+    document.getElementById('loading').style.opacity = '0';
+    setTimeout(() => {
+      document.getElementById('loading').style.display = 'none';
+      document.getElementById('main-dash').style.display = 'flex';
+    }, 500);
+  } catch (err) {
+    document.getElementById('loading-msg').textContent = 'Failed connecting to backend';
+    document.getElementById('loading-err').textContent = err.message || err;
+  }
+
+  setInterval(refreshAll, REFRESH);
+}
+
+window.addEventListener('DOMContentLoaded', init);
+</script>
+
+</body>
+</html>

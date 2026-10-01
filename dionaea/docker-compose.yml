@@ -1,0 +1,25 @@
+version: "3.8"
+services:
+  dionaea:
+    image: dionaea_local
+    container_name: dionaea
+    restart: always
+    cap_add:
+      - NET_BIND_SERVICE
+    ports:
+      - "5060:5060/tcp"
+      - "5060:5060/udp"
+      - "1723:1723/tcp"
+      - "445:445/tcp"
+      - "135:135/tcp"
+      - "3306:3306/tcp"
+      - "1433:1433/tcp"
+      - "1883:1883/tcp"
+    volumes:
+      - ./etc:/opt/dionaea/etc
+      - ./var:/opt/dionaea/var
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "5"

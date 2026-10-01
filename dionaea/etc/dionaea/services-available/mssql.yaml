@@ -1,0 +1,7 @@
+# SPDX-FileCopyrightText: none
+# SPDX-License-Identifier: CC0-1.0
+- name: mssql
+  config:
+    server_name: SCADA-SRV-01
+    instance_name: MSSQLSERVER
+    version: "Microsoft SQL Server 2019 (RTM) - 15.0.2000.5"

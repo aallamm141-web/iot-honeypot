@@ -1,0 +1,24 @@
+version: "3.8"
+services:
+  conpot:
+    build: ./
+    container_name: conpot
+    ports:
+      - "80:8800"
+      - "102:10201"
+      - "502:5020"
+      - "161:16100/udp"
+      - "47808:47808/udp"
+      - "623:6230/udp"
+      - "21:2121"
+      - "69:6969/udp"
+      - "44818:44818"
+    volumes:
+      - ./logs:/var/log/conpot
+    restart: always
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "5"
+

@@ -1,0 +1,28 @@
+# SPDX-FileCopyrightText: none
+# SPDX-License-Identifier: CC0-1.0
+- name: smb
+  config:
+    os_type: 4
+    primary_domain: SCADA-DOMAIN
+    oem_domain_name: SCADA-DOMAIN
+    server_name: SCADA-SRV-01
+    native_os: Windows 7 Professional 7601
+    native_lan_manager: Windows 7 Professional 6.1
+    shares:
+      ADMIN$:
+        comment: Remote Admin
+        path: C:\\Windows
+        type: disktree
+      C$:
+        comment: Default Share
+        path: C:\\
+        type:
+          - disktree
+          - special
+      IPC$:
+        comment: Remote IPC
+        type: ipc
+      SCADA$:
+        comment: SCADA Data Share
+        path: C:\\SCADA
+        type: disktree

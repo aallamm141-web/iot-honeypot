@@ -1,0 +1,21 @@
+volumes:
+  cowrie-etc:
+  cowrie-var:
+services:
+  cowrie:
+    restart: always
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    container_name: cowrie
+    ports:
+      - "2222:2222"
+      - "2223:2223"
+    volumes:
+      - cowrie-etc:/cowrie/cowrie-git/etc
+      - cowrie-var:/cowrie/cowrie-git/var
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "5"

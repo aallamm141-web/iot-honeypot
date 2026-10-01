@@ -1,0 +1,66 @@
+<HTML>
+    <HEAD>
+        <TITLE>Overview - <condata source="databus" key="SystemDescription" /></TITLE>
+        <STYLE>
+            body { font-family: Arial, sans-serif; background-color: #f0f0f0; margin: 0; padding: 0; }
+            .header { background-color: #003366; color: white; padding: 10px 20px; }
+            .header h1 { margin: 0; font-size: 20px; }
+            .header p { margin: 0; font-size: 12px; color: #aaaaaa; }
+            .content { padding: 20px; }
+            .warning { background-color: #fff3cd; border: 1px solid #ffc107; padding: 10px; margin-bottom: 20px; font-size: 13px; }
+            table { border-collapse: collapse; width: 100%; max-width: 600px; background: white; }
+            td { padding: 8px 12px; border: 1px solid #dddddd; font-size: 13px; }
+            td:first-child { background-color: #e8e8e8; font-weight: bold; width: 200px; }
+            .status-ok { color: green; font-weight: bold; }
+            .footer { margin-top: 20px; font-size: 11px; color: #888888; }
+        </STYLE>
+    </HEAD>
+    <BODY>
+        <DIV class="header">
+            <h1>Cairo Industrial Complex</h1>
+            <p>SCADA Control System - Remote Monitoring Interface</p>
+        </DIV>
+        <DIV class="content">
+            <DIV class="warning">
+                &#9888; WARNING: This system is for authorized personnel only.
+                Unauthorized access is strictly prohibited and will be prosecuted.
+            </DIV>
+            <h2><condata source="databus" key="SystemName" /></h2>
+            <hr>
+            <table>
+                <tr>
+                    <td>System Description</td>
+                    <td><condata source="databus" key="SystemDescription" /></td>
+                </tr>
+                <tr>
+                    <td>Current Time</td>
+                    <td><condata source="eval" key="time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())" /></td>
+                </tr>
+                <tr>
+                    <td>System Uptime</td>
+                    <td><condata source="databus" key="Uptime" /> timeticks</td>
+                </tr>
+                <tr>
+                    <td>System Status</td>
+                    <td><span class="status-ok">&#9679; ONLINE</span></td>
+                </tr>
+                <tr>
+                    <td>Location</td>
+                    <td><condata source="databus" key="sysLocation" /></td>
+                </tr>
+                <tr>
+                    <td>Contact</td>
+                    <td><condata source="databus" key="sysContact" /></td>
+                </tr>
+                <tr>
+                    <td>Facility</td>
+                    <td><condata source="databus" key="FacilityName" /></td>
+                </tr>
+            </table>
+            <DIV class="footer">
+                &copy; 2024 Cairo Industrial Complex - All rights reserved |
+                IT Support: eng.operations@company.local
+            </DIV>
+        </DIV>
+    </BODY>
+</HTML>
